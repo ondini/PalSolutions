@@ -2,7 +2,7 @@ CFLAGS+= -Wall -g
 CC = g++
 ZIP = zip
 
-TG = farms
+TG = farms.out
 CF = main.cpp
 
 $(TG): $(CF)

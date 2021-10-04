@@ -1,38 +1,47 @@
 #include <iostream>
-#include <string>
 #include <cmath>
+#include <stack>
 
-#include <chrono>
+#include <bits/stdc++.h>
 
 using namespace std;
 
-// Two possible approaches?:
-//      > version of Kruskal's algorithm
-//      > dfs from each hub
+// Utilized approach: DFS from each hub
 
-
- 
-void heapify(int* arr, int iBound, int iParent)
+void pushEdge(vector<pair<int, int>> roadsAdj[], int farmA, int farmB, int price)
 {
-    
-    int iLargest = iParent;
-    int iChildL = 2*iParent + 1; 
-    int iChildR = 2*iParent + 2;
+    roadsAdj[farmA].push_back(make_pair(farmB, price));
+    roadsAdj[farmB].push_back(make_pair(farmA, price));
+}
 
-    
-    if (iChildL < iBound && arr[iChildL*3+2] > arr[iLargest*3+2])
-        iLargest = iChildL;
-
-    if (iChildR < iBound && arr[iChildR*3+2] > arr[iLargest*3+2])
-        iLargest = iChildR;
- 
-    if (iLargest != iParent) {
-        swap(arr[iLargest*3], arr[iParent*3]);
-        swap(arr[iLargest*3+1], arr[iParent*3+1]);
-        swap(arr[iLargest*3+2], arr[iParent*3+2]);
-
-        heapify(arr, iBound, iLargest);
+void printGraph(vector<pair<int, int>> adj[], int V)
+{
+    int v, w;
+    for (int u = 0; u < V; u++)
+    {
+        cout << u;
+        for (auto it = adj[u].begin(); it != adj[u].end(); it++)
+        {
+            v = it->first;
+            w = it->second;
+            cout << " -> (" << v << ", w:"
+                 << w << ")";
+        }
+        cout << "\n";
     }
+}
+
+void printVec(vector<pair<int, int>> adj)
+{
+    cout << "( ";
+    int node, price;
+    for (auto it = adj.begin(); it != adj.end(); it++)
+    {
+        node = it->first;
+        price = it->second;
+        cout << node << "-" << price << "; ";
+    }
+    cout << ")\n";
 }
 
 int main(int argc, char const *argv[])
@@ -41,120 +50,158 @@ int main(int argc, char const *argv[])
     // read metadata
     int numFarms, numRoads;
     cin >> numFarms >> numRoads;
-    
+
     cout << numFarms << " " << numRoads << endl;
 
     //variables for graph storing
-    int* roads = new int [numRoads*3];
-    int* farms = new int [numFarms*2];
+    int *farms = new int[numFarms * 3];
+    vector<pair<int, int>> roadAdjList[numFarms];
 
-    // insert first road to array
+    // read values from input, add directly create adjacecny list
     int farmA, farmB, price;
-    cin >> farmA >> farmB >> price;
 
-    roads[0*3 + 0] = farmA;
-    roads[0*3 + 1] = farmB;
-    roads[0*3 + 2] = price;
-    
-    // read values from input, add to array and directly heapify that array
-    for(int i = 1; i < numRoads; ++i)
+    for (int i = 0; i < numRoads; ++i)
     {
         cin >> farmA >> farmB >> price;
-
-        roads[i*3 + 0] = farmA;
-        roads[i*3 + 1] = farmB;
-        roads[i*3 + 2] = price;
-
-        int iChild = i;
-        int iParent = (int)((double) i/2 + 0.5) - 1;
-
-        //heapify = while parent has greater price, swap
-
-        while (iChild != 0 && roads[iParent*3 + 2] < roads[iChild*3 + 2]) {
-            swap(roads[iChild*3], roads[iParent*3]);
-            swap(roads[iChild*3+1], roads[iParent*3+1]);
-            swap(roads[iChild*3+2], roads[iParent*3+2]);
-
-            iChild = iParent;
-            iParent =  (int)((double) iParent/2 + 0.5) - 1;
-
-        }
-        
+        pushEdge(roadAdjList, farmA, farmB, price);
     }
 
-    // heapsort the heapified array
-    for (int i = numRoads - 1; i > 0; i--) {
-
-        // Move current max to the end
-        swap(roads[0], roads[i*3]);
-        swap(roads[1], roads[i*3+1]);
-        swap(roads[2], roads[i*3+2]);
- 
-        // heapify the rest
-        heapify(roads, i, 0);
-    }
-
-    // now are the roads sorted by price
+    printGraph(roadAdjList, numFarms);
 
     // read metadata
     int numHubs;
     cin >> numHubs;
 
     // read and mark hubs
+    int *hubs = new int[numHubs];
     int iHub;
-    for(int i = 0; i < numHubs; i++)
+
+    for (int i = 0; i < numHubs; i++)
     {
         cin >> iHub;
-        farms[iHub*2] = -1;
-        farms[iHub*2 + 1] = -1;
+        hubs[i] = iHub;
+        farms[iHub * 3] = iHub;
+        farms[iHub * 3 + 1] = -1;
+        farms[iHub * 3 + 2] = -1;
     }
 
-    // Perform dfs from each hub
-    for(int i = 0; i < numHubs; i++)
-    {   
-        farms = 
+    // Creating stack for DFS
+    stack<tuple<int, int, int>> dfs_stack;
+
+    // Perform DFS from each hub
+    for (int i = 0; i < numHubs; i++)
+    {
+        int hub = hubs[i];
+
+        vector<pair<int, int>> roads = roadAdjList[hub]; //hub successors
+
+        cout << "DFS from hub no. " << hub << endl;
+        printVec(roads);
+
+        // push hub successors to the DFS stack
+        for (auto road = roads.begin(); road != roads.end(); road++)
+        {
+            dfs_stack.push(make_tuple(road->first, road->second, road->second));
+        }
+
+        // DFS loop
+        while (!dfs_stack.empty())
+        {
+
+            auto topElement = dfs_stack.top();
+            int farm = get<0>(topElement);
+            int price = get<1>(topElement); //price so far
+            int priceLastRoad = get<2>(topElement);
+            dfs_stack.pop();
+
+            cout << "Popped: " << farm << ' ' << price << endl;
+
+            bool push = false;
+            // if the node was not yet visited or was visited with higher cost, add to stack and change best hub
+            if (farms[farm * 3 + 1] == 0 || farms[farm * 3 + 1] > price)
+            {
+                farms[farm * 3] = hub;
+                farms[farm * 3 + 1] = price;
+                farms[farm * 3 + 2] = priceLastRoad;
+
+                push = true;
+            }
+            else if (farms[farm * 3 + 1] == price && farms[farm * 3] != hub)
+            {
+                // if the cost is same as from some other hub, note it
+                farms[farm * 3] = -1;
+                push = true;
+                cout << "Equality spotted at farm no. " << farm << endl;
+            }
+            // other possibilities are of no interest to us = farm is other hub, or
+            // already visited with better cost or with same cost from same hub
+
+            //something worth-pushing found
+            if (push)
+            {
+                vector<pair<int, int>> roadsS = roadAdjList[farm];
+                cout << "Pushing succesors of farm no. " << farm << endl;
+                printVec(roadsS);
+
+                for (auto roadS = roadsS.begin(); roadS != roadsS.end(); roadS++)
+                {
+                    int farmS = roadS->first;
+                    int priceS = roadS->second;
+                    dfs_stack.push(make_tuple(farmS, price + priceS, priceS));
+                }
+            }
+
+            // //      Matrix printer
+            // int matRows = numFarms;
+            // int matCols = 2;
+
+            // cout << "____________" << endl;
+            // for (int i = 0; i < matRows; ++i)
+            // {
+            //     cout << "| ";
+            //     for (int j = 0; j < matCols; ++j)
+            //     {
+            //         cout << farms[i * matCols + j] << ' ';
+            //     }
+            //     cout << "| " << endl;
+            // }
+            // cout << "____________" << endl;
+        }
     }
-    
-    
-    
+
+    // compute total road length and number of unconnectable farms
+    int length = 0;
+    int numUnconnected = 0;
+    for (int i = 0; i < numFarms; i++)
+    {
+        if (farms[i * 3 + 1] != -1 && farms[i * 3] != -1)
+        {
+            length += farms[i * 3 + 2];
+        }
+        if (farms[i * 3] == -1)
+        {
+            numUnconnected += 1;
+        }
+    }
+
     //      Matrix printer
-    int matRows = numRoads;
+    int matRows = numFarms;
     int matCols = 3;
-    
+
     cout << "____________" << endl;
     for (int i = 0; i < matRows; ++i)
     {
         cout << "| ";
         for (int j = 0; j < matCols; ++j)
         {
-            cout << roads[i*matCols + j] << ' ';
+            cout << farms[i * matCols + j] << ' ';
         }
         cout << "| " << endl;
     }
     cout << "____________" << endl;
 
-
-
-
-
-    //      Matrix printer
-    matRows = numFarms;
-    matCols = 2;
-    
-    cout << "____________" << endl;
-    for (int i = 0; i < matRows; ++i)
-    {
-        cout << "| ";
-        for (int j = 0; j < matCols; ++j)
-        {
-            cout << farms[i*matCols + j] << ' ';
-        }
-        cout << "| " << endl;
-    }
-    cout << "____________" << endl;
-
-
-
-
+    printf("%d %d\n", length, numUnconnected);
+    delete[] hubs;
+    delete[] farms;
     return 0;
 }
