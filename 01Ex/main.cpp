@@ -8,14 +8,6 @@ using namespace std;
 
 // Utilized approach: DFS from each hub
 
-void pushEdge(vector<pair<int, int>> roadsAdj[], int farmA, int farmB, int price);
-
-void printGraph(vector<pair<int, int>> adj[], int V);
-
-void printVec(vector<pair<int, int>> adj);
-
-void printMatrix(int *matrix, int matRows, int matCols);
-
 class CompareNodes
 {
 public:
@@ -25,7 +17,16 @@ public:
     }
 };
 
-void printQueue(priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> gq);
+class CompareNodes2
+{
+public:
+    bool operator()(tuple<int, int, int, int> a, tuple<int, int, int, int> b)
+    {
+        return get<2>(a) > get<2>(b);
+    }
+};
+
+void pushEdge(vector<pair<int, int>> roadsAdj[], int farmA, int farmB, int price);
 
 void readEdges(vector<pair<int, int>> roadAdjList[], int numRoads,
                priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> *roads);
@@ -33,6 +34,14 @@ void readEdges(vector<pair<int, int>> roadAdjList[], int numRoads,
 void readHubs(int *hubs, int *farms, int numHubs);
 
 int findParent(int parent[], int i);
+
+void printGraph(vector<pair<int, int>> adj[], int V);
+
+void printVec(vector<pair<int, int>> adj);
+
+void printQueue(priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> gq);
+
+void printMatrix(int *matrix, int matRows, int matCols);
 
 int main(int argc, char const *argv[])
 {
@@ -44,7 +53,7 @@ int main(int argc, char const *argv[])
     //cout << numFarms << " " << numRoads << endl;
 
     //variables for graph storing
-    int *farms = new int[numFarms * 3];
+    int *farms = new int[numFarms * 2];
     vector<pair<int, int>> roadAdjList[numFarms];
     priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> roads;
 
@@ -61,7 +70,9 @@ int main(int argc, char const *argv[])
 
     // Perform DFS from each hub
 
-    stack<tuple<int, int, int>> dfs_stack;
+    //stack<tuple<int, int, int, int>> dfs_stack;
+
+    priority_queue<tuple<int, int, int, int>, vector<tuple<int, int, int, int>>, CompareNodes2> PrQueue;
     for (int i = 0; i < numHubs; i++)
     {
         int hub = hubs[i];
@@ -74,54 +85,55 @@ int main(int argc, char const *argv[])
         // push hub successors to the DFS stack
         for (auto road = roads.begin(); road != roads.end(); road++)
         {
-            dfs_stack.push(make_tuple(road->first, road->second, road->second));
+            PrQueue.push(make_tuple(road->first, road->second, road->second, hub));
         }
+    }
 
-        // DFS loop
-        while (!dfs_stack.empty())
+    // DFS loop
+    while (!PrQueue.empty())
+    {
+
+        auto topElement = PrQueue.top();
+        int farm = get<0>(topElement);
+        int price = get<1>(topElement); //price so far
+        int priceLastRoad = get<2>(topElement);
+        int parentHub = get<3>(topElement);
+        PrQueue.pop();
+
+        //cout << "Popped: " << farm << ' ' << price << endl;
+
+        bool push = false;
+        // if the node was not yet visited or was visited with higher cost, add to stack and change best hub
+        if (farms[farm * 3 + 1] == 0 || farms[farm * 3 + 1] > price)
         {
+            farms[farm * 3] = parentHub;
+            farms[farm * 3 + 1] = price;
+            farms[farm * 3 + 2] = priceLastRoad;
 
-            auto topElement = dfs_stack.top();
-            int farm = get<0>(topElement);
-            int price = get<1>(topElement); //price so far
-            int priceLastRoad = get<2>(topElement);
-            dfs_stack.pop();
+            push = true;
+        }
+        else if (farms[farm * 3 + 1] == price && farms[farm * 3] != parentHub)
+        {
+            // if the cost is same as from some other hub, note it
+            farms[farm * 3] = -1;
+            push = true;
+            //cout << "Equality spotted at farm no. " << farm << endl;
+        }
+        // other possibilities are of no interest to us = farm is other hub, or
+        // already visited with better cost or with same cost from same hub
 
-            //cout << "Popped: " << farm << ' ' << price << endl;
+        //something worth-pushing found
+        if (push)
+        {
+            vector<pair<int, int>> roadsS = roadAdjList[farm];
+            //cout << "Pushing succesors of farm no. " << farm << endl;
+            //printVec(roadsS);
 
-            bool push = false;
-            // if the node was not yet visited or was visited with higher cost, add to stack and change best hub
-            if (farms[farm * 3 + 1] == 0 || farms[farm * 3 + 1] > price)
+            for (auto roadS = roadsS.begin(); roadS != roadsS.end(); roadS++)
             {
-                farms[farm * 3] = hub;
-                farms[farm * 3 + 1] = price;
-                farms[farm * 3 + 2] = priceLastRoad;
-
-                push = true;
-            }
-            else if (farms[farm * 3 + 1] == price && farms[farm * 3] != hub)
-            {
-                // if the cost is same as from some other hub, note it
-                farms[farm * 3] = -1;
-                push = true;
-                //cout << "Equality spotted at farm no. " << farm << endl;
-            }
-            // other possibilities are of no interest to us = farm is other hub, or
-            // already visited with better cost or with same cost from same hub
-
-            //something worth-pushing found
-            if (push)
-            {
-                vector<pair<int, int>> roadsS = roadAdjList[farm];
-                //cout << "Pushing succesors of farm no. " << farm << endl;
-                //printVec(roadsS);
-
-                for (auto roadS = roadsS.begin(); roadS != roadsS.end(); roadS++)
-                {
-                    int farmS = roadS->first;
-                    int priceS = roadS->second;
-                    dfs_stack.push(make_tuple(farmS, price + priceS, priceS));
-                }
+                int farmS = roadS->first;
+                int priceS = roadS->second;
+                PrQueue.push(make_tuple(farmS, price + priceS, priceS, parentHub));
             }
         }
     }
