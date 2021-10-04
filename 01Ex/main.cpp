@@ -1,7 +1,8 @@
 #include <iostream>
 #include <cmath>
-#include <stack>
 
+#include <stack>
+#include <queue>
 #include <bits/stdc++.h>
 
 using namespace std;
@@ -42,6 +43,39 @@ void printVec(vector<pair<int, int>> adj)
         cout << node << "-" << price << "; ";
     }
     cout << ")\n";
+}
+
+int getSum(int *farms, int numFarms)
+{
+    int length = 0;
+    for (int i = 0; i < numFarms; i++)
+    {
+        if (farms[i * 3 + 1] != -1 && farms[i * 3] != -1)
+        {
+            length += farms[i * 3 + 2];
+        }
+    }
+    return length;
+}
+
+class CompareNodes
+{
+public:
+    bool operator()(tuple<int, int, int> a, tuple<int, int, int> b)
+    {
+        return get<2>(a) > get<2>(b);
+    }
+};
+
+void showpq(priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> gq)
+{
+    priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> g = gq;
+    while (!g.empty())
+    {
+        cout << '\t' << get<0>(g.top()) << '-' << get<2>(g.top());
+        g.pop();
+    }
+    cout << '\n';
 }
 
 int main(int argc, char const *argv[])
@@ -85,40 +119,42 @@ int main(int argc, char const *argv[])
         farms[iHub * 3 + 2] = -1;
     }
 
-    // Creating stack for DFS
-    stack<tuple<int, int, int>> dfs_stack;
+    // Creating priority queue for search
 
-    // Perform DFS from each hub
+    priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> PrQueue;
+
+    // Perform search from each hub
     for (int i = 0; i < numHubs; i++)
     {
         int hub = hubs[i];
 
-        vector<pair<int, int>> roads = roadAdjList[hub]; //hub successors
+        vector<pair<int, int>> roads = roadAdjList[hub]; // hub successors
 
-        cout << "DFS from hub no. " << hub << endl;
+        cout << "SEARCHING from hub no. " << hub << endl;
         printVec(roads);
 
-        // push hub successors to the DFS stack
+        // push hub successors to the Priority queue
         for (auto road = roads.begin(); road != roads.end(); road++)
         {
-            dfs_stack.push(make_tuple(road->first, road->second, road->second));
+            PrQueue.push(make_tuple(road->first, road->second, road->second));
         }
 
-        // DFS loop
-        while (!dfs_stack.empty())
+        // Main Search loop
+        while (!PrQueue.empty())
         {
 
-            auto topElement = dfs_stack.top();
+            auto topElement = PrQueue.top();
             int farm = get<0>(topElement);
             int price = get<1>(topElement); //price so far
             int priceLastRoad = get<2>(topElement);
-            dfs_stack.pop();
+            PrQueue.pop();
 
-            cout << "Popped: " << farm << ' ' << price << endl;
+            cout << "Popped: " << farm << ' ' << price << ' ' << priceLastRoad << endl;
 
             bool push = false;
-            // if the node was not yet visited or was visited with higher cost, add to stack and change best hub
-            if (farms[farm * 3 + 1] == 0 || farms[farm * 3 + 1] > price)
+
+            // if the node was not yet visited or was visited with higher cost, add to stack and change the best hub
+            if (farms[farm * 3 + 1] == 0 || (farms[farm * 3] != hub && farms[farm * 3 + 1] > price))
             {
                 farms[farm * 3] = hub;
                 farms[farm * 3 + 1] = price;
@@ -131,8 +167,15 @@ int main(int argc, char const *argv[])
                 // if the cost is same as from some other hub, note it
                 farms[farm * 3] = -1;
                 push = true;
+
                 cout << "Equality spotted at farm no. " << farm << endl;
             }
+            else if (farms[farm * 3] == hub && farms[farm * 3 + 1] > price)
+            {
+                farms[farm * 3 + 1] = price;
+                push = true;
+            }
+
             // other possibilities are of no interest to us = farm is other hub, or
             // already visited with better cost or with same cost from same hub
 
@@ -147,31 +190,33 @@ int main(int argc, char const *argv[])
                 {
                     int farmS = roadS->first;
                     int priceS = roadS->second;
-                    dfs_stack.push(make_tuple(farmS, price + priceS, priceS));
+                    PrQueue.push(make_tuple(farmS, price + priceS, priceS));
                 }
             }
 
-            // //      Matrix printer
-            // int matRows = numFarms;
-            // int matCols = 2;
+            //      Matrix printer
+            int matRows = numFarms;
+            int matCols = 3;
 
-            // cout << "____________" << endl;
-            // for (int i = 0; i < matRows; ++i)
-            // {
-            //     cout << "| ";
-            //     for (int j = 0; j < matCols; ++j)
-            //     {
-            //         cout << farms[i * matCols + j] << ' ';
-            //     }
-            //     cout << "| " << endl;
-            // }
-            // cout << "____________" << endl;
+            cout << "____________" << endl;
+            for (int i = 0; i < matRows; ++i)
+            {
+                cout << "| ";
+                for (int j = 0; j < matCols; ++j)
+                {
+                    cout << farms[i * matCols + j] << ' ';
+                }
+                cout << "| " << endl;
+            }
+            cout << "____________" << endl;
         }
     }
 
     // compute total road length and number of unconnectable farms
     int length = 0;
     int numUnconnected = 0;
+
+    vector<pair<int, int>> roadAdjList2[numFarms];
     for (int i = 0; i < numFarms; i++)
     {
         if (farms[i * 3 + 1] != -1 && farms[i * 3] != -1)
@@ -181,6 +226,10 @@ int main(int argc, char const *argv[])
         if (farms[i * 3] == -1)
         {
             numUnconnected += 1;
+        }
+        else
+        {
+            pushEdge(roadAdjList, farmA, farmB, price);
         }
     }
 
