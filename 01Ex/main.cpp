@@ -31,9 +31,9 @@ void pushEdge(vector<pair<int, int>> roadsAdj[], int farmA, int farmB, int price
 void readEdges(vector<pair<int, int>> roadAdjList[], int numRoads,
                priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> *roads);
 
-void readHubs(int *hubs, int *farms, int numHubs);
+void readHubs(vector<int> *hubs, vector<int> *farms, int numHubs);
 
-int findParent(int parent[], int i);
+int findParent(vector<int> *farms, int i);
 
 void printGraph(vector<pair<int, int>> adj[], int V);
 
@@ -53,7 +53,7 @@ int main(int argc, char const *argv[])
     //cout << numFarms << " " << numRoads << endl;
 
     //variables for graph storing
-    int *farms = new int[numFarms * 2];
+    vector<int> farms(numFarms * 2, 0);
     vector<pair<int, int>> roadAdjList[numFarms];
     priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> roads;
 
@@ -64,9 +64,9 @@ int main(int argc, char const *argv[])
     // read metadata, and store hubs
     int numHubs;
     cin >> numHubs;
-    int *hubs = new int[numHubs];
+    vector<int> hubs(numHubs);
 
-    readHubs(hubs, farms, numHubs);
+    readHubs(&hubs, &farms, numHubs);
 
     // Perform DFS from each hub
 
@@ -90,13 +90,14 @@ int main(int argc, char const *argv[])
     }
 
     // DFS loop
+    int numUnconnected = 0;
     while (!PrQueue.empty())
     {
 
         auto topElement = PrQueue.top();
         int farm = get<0>(topElement);
         int price = get<1>(topElement); //price so far
-        int priceLastRoad = get<2>(topElement);
+        //int priceLastRoad = get<2>(topElement);
         int parentHub = get<3>(topElement);
         PrQueue.pop();
 
@@ -104,20 +105,21 @@ int main(int argc, char const *argv[])
 
         bool push = false;
         // if the node was not yet visited or was visited with higher cost, add to stack and change best hub
-        if (farms[farm * 3 + 1] == 0 || farms[farm * 3 + 1] > price)
+        if (farms[farm * 2 + 1] == 0 || farms[farm * 2 + 1] > price)
         {
-            farms[farm * 3] = parentHub;
-            farms[farm * 3 + 1] = price;
-            farms[farm * 3 + 2] = priceLastRoad;
-
+            if (farms[farm * 2] == -1)
+                numUnconnected -= 1;
+            farms[farm * 2] = parentHub;
+            farms[farm * 2 + 1] = price;
             push = true;
         }
-        else if (farms[farm * 3 + 1] == price && farms[farm * 3] != parentHub)
+        else if (farms[farm * 2 + 1] == price && farms[farm * 2] != parentHub)
         {
             // if the cost is same as from some other hub, note it
-            farms[farm * 3] = -1;
+            if (farms[farm * 2] != -1)
+                numUnconnected += 1;
+            farms[farm * 2] = -1;
             push = true;
-            //cout << "Equality spotted at farm no. " << farm << endl;
         }
         // other possibilities are of no interest to us = farm is other hub, or
         // already visited with better cost or with same cost from same hub
@@ -126,8 +128,6 @@ int main(int argc, char const *argv[])
         if (push)
         {
             vector<pair<int, int>> roadsS = roadAdjList[farm];
-            //cout << "Pushing succesors of farm no. " << farm << endl;
-            //printVec(roadsS);
 
             for (auto roadS = roadsS.begin(); roadS != roadsS.end(); roadS++)
             {
@@ -138,24 +138,14 @@ int main(int argc, char const *argv[])
         }
     }
 
-    // compute number of unconnectable farms
-    int numUnconnected = 0;
-
-    for (int i = 0; i < numFarms; i++)
-    {
-        if (farms[i * 3] == -1)
-        {
-            numUnconnected += 1;
-        }
-    }
-
     // find MSTs
 
-    int *finalFarmsBoss = new int[numFarms];
-    fill_n(finalFarmsBoss, numFarms, -1);
-    int *finalFarmsRank = new int[numFarms];
+    vector<int> finalFarmsBoss(numFarms, -1);
+    vector<int> finalFarmsRank(numFarms, 0);
+    //finalFarmsRank.reserve(numFarms);
 
-    int priceAB, farmA, farmB;
+    int priceAB,
+        farmA, farmB;
     int minCost = 0;
 
     int parentA, parentB, maxParent;
@@ -169,11 +159,11 @@ int main(int argc, char const *argv[])
         roads.pop();
 
         // Parents used for union-find
-        parentA = findParent(finalFarmsBoss, farmA);
-        parentB = findParent(finalFarmsBoss, farmB);
+        parentA = findParent(&finalFarmsBoss, farmA);
+        parentB = findParent(&finalFarmsBoss, farmB);
         //cout << " P:" << parentA << "-" << parentB;
 
-        if (farms[farmA * 3] == farms[farmB * 3] && farms[farmA * 3] != -1 && parentA != parentB) //condition to process the farm
+        if (farms[farmA * 2] == farms[farmB * 2] && farms[farmA * 2] != -1 && parentA != parentB) //condition to process the farm
         {
             if (finalFarmsRank[parentA] == finalFarmsRank[parentB])
             {
@@ -191,21 +181,17 @@ int main(int argc, char const *argv[])
 
     fprintf(stdout, "%d %d\n", minCost, numUnconnected);
 
-    delete[] finalFarmsRank;
-    delete[] finalFarmsBoss;
-    delete[] hubs;
-    delete[] farms;
     return 0;
 }
 
-int findParent(int parent[], int i)
+int findParent(vector<int> *farms, int i)
 {
-    if (parent[i] == -1 || parent[i] == i)
+    if (farms->at(i) == -1 || farms->at(i) == i)
     {
-        parent[i] = i;
+        farms->at(i) = i;
         return i;
     }
-    return findParent(parent, parent[i]);
+    return findParent(farms, farms->at(i));
 }
 
 void pushEdge(vector<pair<int, int>> roadsAdj[], int farmA, int farmB, int price)
@@ -296,15 +282,14 @@ void printMatrix(int *matrix, int matRows, int matCols)
     cout << "__" << endl;
 }
 
-void readHubs(int *hubs, int *farms, int numHubs)
+void readHubs(vector<int> *hubs, vector<int> *farms, int numHubs)
 {
     int iHub;
     for (int i = 0; i < numHubs; i++)
     {
         cin >> iHub;
-        hubs[i] = iHub;
-        farms[iHub * 3] = iHub;
-        farms[iHub * 3 + 1] = -1;
-        farms[iHub * 3 + 2] = -1;
+        hubs->at(i) = iHub;
+        farms->at(iHub * 2) = iHub;
+        farms->at(iHub * 2 + 1) = -1;
     }
 }
