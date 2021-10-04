@@ -1,0 +1,5 @@
+# general files
+
+*.code-workspace
+
+*/*.zip
