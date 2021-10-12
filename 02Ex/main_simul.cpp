@@ -6,45 +6,20 @@
 #include <bits/stdc++.h>
 
 #define UNVISITED -2
-#define NUMCOLS 4
 
 using namespace std;
 
 // Utilized approach: DFS from each hub
 
-void readConvs(vector<int> roadAdjList[], vector<int> convAdjListRev[], int numRoads);
+void readConvs(vector<int> roadAdjList[], vector<int> roadAdjListRev[], int numRoads);
 
 void printGraph(vector<int> adj[], int V);
 
 void printVec(vector<int> vec);
 
-void tarjanStep(int point, stack<int> *dfs_stack, vector<int> *points, int *openTime, int *lastSCC, vector<int> convAdjList[]);
+void tarjanStep(int point, stack<int> *dfs_stack, vector<int> *points, int *openTime, vector<int> convAdjList[], vector<int> convAdjListRev[], vector<int> convAdjListCond[], int *lastSCC);
 
 void printMatrix(vector<int> *matrix, int matRows, int matCols);
-
-void condGraph(int numPoints, vector<int> convAdjList[], vector<int> convAdjListRev[], vector<int> convAdjListCond[], vector<int> *points)
-{
-
-    for (int i = 0; i < numPoints; i++)
-    {
-        // if (convAdjList[i].empty())
-        // {
-        //     startPoints
-        // }
-        int succCond, compCond;
-        for (int succ : convAdjList[i])
-        {
-            compCond = points->at(i * NUMCOLS + 3);
-            succCond = points->at(succ * NUMCOLS + 3);
-            if (succCond != compCond)
-                convAdjListCond[compCond].push_back(succCond);
-            // if (std::find(convAdjListCond[points->at(i * NUMCOLS + 3)].begin(), convAdjListCond[points->at(i * NUMCOLS + 3)].end(), points->at(succ * NUMCOLS + 3)) != convAdjListCond[points->at(i * NUMCOLS + 3)].end())
-            // {
-            //     convAdjListCond[points->at(i * NUMCOLS + 3)].push_back(points->at(succ * NUMCOLS + 3));
-            // }
-        }
-    }
-}
 
 int main(int argc, char const *argv[])
 {
@@ -58,99 +33,100 @@ int main(int argc, char const *argv[])
     //variables for graph storing
     vector<int> convAdjList[numPoints];
     vector<int> convAdjListRev[numPoints];
+    vector<int> convAdjListCond[numPoints];
 
     readConvs(convAdjList, convAdjListRev, numConvs);
     printGraph(convAdjList, numPoints);
+    printGraph(convAdjListRev, numPoints);
 
     // Find SSUs using Tarjan
 
     stack<int> dfs_stack;
-    vector<int> points(numPoints * NUMCOLS, UNVISITED);
+    vector<int> points(numPoints * 3, UNVISITED);
     int openTime = 0;
     int lastSCC = 0;
 
     for (int point = 0; point < numPoints; ++point)
     {
-        if (points[point * NUMCOLS] == UNVISITED)
+        if (points[point * 3] == UNVISITED)
         {
             //cout << "Visiting point no. " << point << endl;
-            tarjanStep(point, &dfs_stack, &points, &openTime, &lastSCC, convAdjList);
+            tarjanStep(point, &dfs_stack, &points, &openTime, convAdjList, convAdjListRev, convAdjListCond, &lastSCC);
         }
     }
 
-    printMatrix(&points, 17, NUMCOLS);
-
-    vector<int> convAdjListCond[lastSCC];
-    condGraph(numPoints, convAdjList, convAdjListRev, convAdjListCond, &points);
-    printGraph(convAdjListCond, lastSCC);
-
+    printGraph(convAdjListCond, numPoints);
     return 0;
 }
 
-void tarjanStep(int point, stack<int> *dfs_stack, vector<int> *points, int *openTime, int *lastSCC, vector<int> convAdjList[])
+void tarjanStep(int point, stack<int> *dfs_stack, vector<int> *points, int *openTime, vector<int> convAdjList[], vector<int> convAdjListRev[], vector<int> convAdjListCond[], int *lastSCC)
 {
 
-    points->at(point * NUMCOLS) = *openTime;
-    points->at(point * NUMCOLS + 1) = *openTime;
+    points->at(point * 3) = *openTime;
+    points->at(point * 3 + 1) = *openTime;
     *openTime += 1;
     dfs_stack->push(point);
-    points->at(point * NUMCOLS + 2) = 1;
+    points->at(point * 3 + 2) = 1;
 
     vector<int> successors = convAdjList[point]; // point successors
 
-    // cout << "Successors: ";
-    // printVec(successors);
-    // printMatrix(points, 17, NUMCOLS);
+    //cout << "Successors: ";
+    //printVec(successors);
+    //printMatrix(points, 17, 3);
 
     // consider each point successor
     for (int successor : successors)
     {
-        if (points->at(successor * NUMCOLS) == UNVISITED)
+        if (points->at(successor * 3) == UNVISITED)
         {
             // Successor has not yet been visited; recurse on it
             //cout << "Not visited: " << successor << endl;
-            tarjanStep(successor, dfs_stack, points, openTime, lastSCC, convAdjList);
-            points->at(point * NUMCOLS + 1) = min(points->at(point * NUMCOLS + 1), points->at(successor * NUMCOLS + 1));
+            tarjanStep(successor, dfs_stack, points, openTime, convAdjList, convAdjListRev, convAdjListCond, lastSCC);
+            points->at(point * 3 + 1) = min(points->at(point * 3 + 1), points->at(successor * 3 + 1));
         }
-        else if (points->at(successor * NUMCOLS + 2) == 1)
+        else if (points->at(successor * 3 + 2) == 1)
         {
             //cout << "Visited and onstack: " << successor << endl;
             // Successor w is in stack S and hence in the current SCC
             // If w is not on stack, then (v, w) is an edge pointing to an SCC already found and must be ignored
             // Note: The next line may look odd - but is correct.
             // It says w.index not w.lowlink; that is deliberate and from the original paper
-            points->at(point * NUMCOLS + 1) = min(points->at(point * NUMCOLS + 1), points->at(successor * NUMCOLS));
+            points->at(point * 3 + 1) = min(points->at(point * 3 + 1), points->at(successor * 3));
         }
     }
 
     // If v is a root node, pop the stack and generate an SCC
-    if (points->at(point * NUMCOLS + 1) == points->at(point * NUMCOLS))
+    if (points->at(point * 3 + 1) == points->at(point * 3))
     {
         // start new SCC
         vector<int> SCC;
         int u = -1;
+        bool inConvs = false;
 
         while (u != point)
         {
             u = dfs_stack->top();
             //cout << "Popping: " << u << endl;
             dfs_stack->pop();
-            points->at(u * NUMCOLS + 2) = UNVISITED;
+            points->at(u * 3 + 2) = UNVISITED;
 
             SCC.push_back(u);
-            points->at(u * NUMCOLS + 3) = *lastSCC;
+            for (int succ : convAdjList[u])
+            {
+                convAdjListCond[*lastSCC].push_back(succ);
+            }
+            inConvs = !convAdjListRev[u].empty();
+        }
+        if (!inConvs)
+        {
+            cout << *lastSCC << " is onewayer!\n";
         }
 
+        cout << "SCC " << *lastSCC << ": ";
         *lastSCC += 1;
-        // cout << "SCC " << *lastSCC << ": ";
-        // printVec(SCC);
+        printVec(SCC);
     }
 }
-
-// void condenseGraph()
-// {
-// }
-// <<<<<<<<<<<<<<, ,>>>>>>>>>>>>>>>>>>>>>
 
 void readConvs(vector<int> convAdjList[], vector<int> convAdjListRev[], int numConvs)
 {
