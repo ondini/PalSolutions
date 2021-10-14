@@ -26,9 +26,7 @@ public:
     }
 };
 
-void pushEdge(vector<pair<int, int>> roadsAdj[], int farmA, int farmB, int price);
-
-void readEdges(vector<pair<int, int>> roadAdjList[], int numRoads,
+void readEdges(vector<vector<pair<int, int>>> *roadAdjList, int numRoads,
                priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> *roads);
 
 void readHubs(vector<int> *hubs, vector<int> *farms, int numHubs);
@@ -54,10 +52,10 @@ int main(int argc, char const *argv[])
 
     //variables for graph storing
     vector<int> farms(numFarms * 2, 0);
-    vector<pair<int, int>> roadAdjList[numFarms];
+    vector<vector<pair<int, int>>> roadAdjList(numFarms);
     priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> roads;
 
-    readEdges(roadAdjList, numRoads, &roads);
+    readEdges(&roadAdjList, numRoads, &roads);
     //printGraph(roadAdjList, numFarms);
     //printQueue(roads);
 
@@ -93,7 +91,6 @@ int main(int argc, char const *argv[])
     int numUnconnected = 0;
     while (!PrQueue.empty())
     {
-
         auto topElement = PrQueue.top();
         int farm = get<0>(topElement);
         int price = get<1>(topElement); //price so far
@@ -113,7 +110,7 @@ int main(int argc, char const *argv[])
             farms[farm * 2 + 1] = price;
             push = true;
         }
-        else if (farms[farm * 2 + 1] == price && farms[farm * 2] != parentHub)
+        else if (farms[farm * 2 + 1] == price && farms[farm * 2] != parentHub && farms[farm * 2] != -1)
         {
             // if the cost is same as from some other hub, note it
             if (farms[farm * 2] != -1)
@@ -194,12 +191,6 @@ int findParent(vector<int> *farms, int i)
     return findParent(farms, farms->at(i));
 }
 
-void pushEdge(vector<pair<int, int>> roadsAdj[], int farmA, int farmB, int price)
-{
-    roadsAdj[farmA].push_back(make_pair(farmB, price));
-    roadsAdj[farmB].push_back(make_pair(farmA, price));
-}
-
 void printGraph(vector<pair<int, int>> adj[], int V)
 {
     int v, w;
@@ -241,7 +232,7 @@ void printQueue(priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>
     cout << '\n';
 }
 
-void readEdges(vector<pair<int, int>> roadAdjList[], int numRoads,
+void readEdges(vector<vector<pair<int, int>>> *roadAdjList, int numRoads,
                priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, CompareNodes> *roads)
 {
     // read values from input, add directly create adjacecny list
@@ -250,7 +241,8 @@ void readEdges(vector<pair<int, int>> roadAdjList[], int numRoads,
     for (int i = 0; i < numRoads; ++i)
     {
         cin >> farmA >> farmB >> price;
-        pushEdge(roadAdjList, farmA, farmB, price);
+        roadAdjList->at(farmA).push_back(make_pair(farmB, price));
+        roadAdjList->at(farmB).push_back(make_pair(farmA, price));
         roads->push(make_tuple(farmA, farmB, price));
     }
 }
