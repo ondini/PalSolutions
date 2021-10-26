@@ -11,7 +11,7 @@ using namespace std;
 
 // Utilized approach: DFS from each hub
 
-void readConvs(vector<vector<int>> *convAdjList, int numRoads);
+void readConvs(vector<vector<int>> *adjList, int numV);
 
 class CompareNodes
 {
@@ -24,7 +24,7 @@ public:
 
 void printQueue(priority_queue<pair<int, int>, vector<pair<int, int>>, CompareNodes> gq);
 
-void printGraph(vector<int> adj[], int V);
+void printGraph(vector<vector<int>> adjList, int V);
 
 void printVec(vector<int> vec);
 
@@ -32,48 +32,45 @@ void printMatrix(vector<int> *matrix, int matRows, int matCols);
 
 int main(int argc, char const *argv[])
 {
-    // read metadata
-    int numPoints, numConvs, iCentral;
-    cin >> numPoints >> numConvs >> iCentral;
+    // read metadata - num. of smugglers, connections, pack size and num. of connections per pack
+    int numSumgs, numConns, packSize, packConns;
+    cin >> numSumgs >> numConns >> packSize >> packConns;
+
+    //cout << numSumgs << numConns << packSize << packConns;
 
     // variables for original graph and reversed directions graph storing
-    vector<vector<int>> convAdjList(numPoints);
-    vector<vector<int>> convAdjListRev(numPoints);
+    vector<vector<int>> convAdjList(numSumgs);
+    //vector<vector<int>> convAdjListRev(numPoints);
 
     // read graph
-    readConvs(&convAdjList, numConvs);
+    readConvs(&convAdjList, numSumgs);
 
-    // Find SCCs using Tarjan's algorithm
-
-    stack<int> dfs_stack;
-    vector<int> points(numPoints * NUMCOLS, UNVISITED);
-
-    //printVec(visited);
-    cout << "Ahoj" << endl;
+    printGraph(convAdjList, numSumgs);
 
     return 0;
 }
 
-void readConvs(vector<vector<int>> *convAdjList, int numConvs)
+void readConvs(vector<vector<int>> *adjList, int numV)
 {
     // read values from input, add directly create adjacecny list
     int pointA, pointB;
 
-    for (int i = 0; i < numConvs; ++i)
+    for (int i = 0; i < numV; ++i)
     {
         cin >> pointA >> pointB;
-        convAdjList->at(pointA).push_back(pointB);
+        adjList->at(pointA).push_back(pointB);
+        adjList->at(pointB).push_back(pointA);
     }
 }
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<, ,>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-void printGraph(vector<vector<int>> adj, int V)
+void printGraph(vector<vector<int>> adjList, int V)
 {
     for (int u = 0; u < V; u++)
     {
         cout << u;
-        for (int el : adj[u])
+        for (int el : adjList[u])
         {
             cout << " -> (" << el << ")";
         }
