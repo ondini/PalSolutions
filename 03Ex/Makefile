@@ -2,7 +2,7 @@ CFLAGS+= -Wall -g
 CC = g++
 ZIP = zip
 
-TG = sumgglers.out
+TG = smugglers.out
 CF = main.cpp
 
 $(TG): $(CF)

@@ -40,16 +40,7 @@ public:
     }
 };
 
-struct CompareDegrees
-{
-    inline bool operator()(pair<int, int> a, pair<int, int> b)
-    {
-        return a.first > b.first;
-    }
-};
-
-typedef priority_queue<pair<int, int>, vector<pair<int, int>>, CompareNodes>
-    p_queue_pair;
+typedef priority_queue<pair<int, int>, vector<pair<int, int>>, CompareNodes> p_queue_pair;
 typedef priority_queue<vector<int>, vector<vector<int>>, CompareRows> p_queue_vec;
 
 vector<vector<int>> packBuffer;
@@ -65,8 +56,6 @@ void printGraph(vector<vector<int>> adjList);
 
 void printVec(vector<int> vec);
 
-void printVecPairs(vector<pair<int, int>> vec);
-
 void printMatrix(vector<int> *matrix, int matRows, int matCols);
 
 int findParent(vector<int> *boss, int i)
@@ -79,51 +68,60 @@ int findParent(vector<int> *boss, int i)
     return findParent(boss, boss->at(i));
 }
 
-int validatePack(vector<int> pack, vector<vector<int>> adjList)
+int getPackConns(vector<int> pack, vector<vector<int>> adjList)
 {
-    int packSize = pack.size();
-
+    int V = pack.size();
     vector<int> mask(adjList.size(), -1);
 
-    for (int i = 0; i < packSize; ++i)
+    for (int i = 0; i < V; ++i)
     {
         mask[pack[i]] = i;
     }
 
-    // FIND if is the pack connected and contains right number of connss
-    // utilities for components conectivity - uninon find variables
-    vector<int> compBoss(packSize, -1);
-    vector<int> compRank(packSize, 0);
+    //printVec(pack);
+    // utilities for components conectivity
+    vector<int> compBoss(V, -1);
+    vector<int> compRank(V, 0);
 
     int parentA, parentB, maxParent;
 
     int numConns = 0;
-    for (int i = 0; i < packSize; ++i) // check all pack members
+    for (int i = 0; i < V; ++i)
     {
-        for (int el : adjList[pack[i]]) //look at all their successors
+        //cout << "Pack_member " << pack[i] << " adjList size " << adjList[pack[i]].size();
+        for (int el : adjList[pack[i]])
         {
+            //cout << pack[i] << " " << el << " " << mask[el] << endl;
             if (mask[el] != -1)
             {
                 numConns += 1;
-
-                // Parents used for union-find alogrithm
+                // Parents used for union-find
                 parentA = findParent(&compBoss, i);
                 parentB = findParent(&compBoss, mask[el]);
 
-                if (parentA != parentB) //not in the same component
+                //cout << parentA << " " << parentB << endl;
+
+                if (parentA != parentB) //condition to process the farm
                 {
-                    if (compRank[parentA] == compRank[parentB]) //select new boss
+                    //cout << compRank[parentA] << compRank[parentB];
+                    if (compRank[parentA] == compRank[parentB])
+                    {
+
                         compRank[parentA] += 1;
+                        //cout << "bigging " << compRank[parentA] << endl;
+                    }
                     maxParent = (compRank[parentA] > compRank[parentB]) ? parentA : parentB;
                     compBoss[parentA] = maxParent;
                     compBoss[parentB] = maxParent;
                 }
+                //printVec(compBoss);
+                //printVec(compRank);
             }
         }
     }
+    //cout << "FINISHED" << endl;
 
-    // find wheter are all pack members connected
-    for (int i = 0; i < packSize; ++i)
+    for (int i = 0; i < V; ++i)
     {
         if (compBoss[i] == -1)
             return -1;
@@ -134,19 +132,17 @@ int validatePack(vector<int> pack, vector<vector<int>> adjList)
 
 void kSubset(vector<int> set, int iEnd, vector<int> result, int remainingDepth, int packConns, vector<vector<int>> adjList)
 {
-    //function generating all k-subsets of given set
-
-    if (remainingDepth < 0) // all digits covered, return
+    //cout << remainingDepth;
+    if (remainingDepth < 0)
     {
-        if (validatePack(result, adjList) == packConns)
+        if (getPackConns(result, adjList) == packConns)
         {
+
             packBuffer.push_back(result);
             //printVec(result);
         }
         return;
     }
-
-    // recursively solve for all remaining digits
     for (int i = iEnd; i > (remainingDepth - 1); --i)
     {
         result[remainingDepth] = set[i];
@@ -172,11 +168,15 @@ bool compareEdges(p_queue_pair edgesA, p_queue_pair edgesB)
     return false;
 }
 
-bool checkIsomorphism(vector<int> packA, vector<int> packB, vector<vector<int>> adjList)
+bool checkOverlap(vector<int> packA, vector<int> packB, vector<vector<int>> adjList)
 {
     int numSmA = packA.size();
     int numSmB = packB.size();
     vector<int> mask(adjList.size(), -1);
+    // cout << "A: ";
+    // printVec(packA);
+    // cout << "B: ";
+    // printVec(packB);
 
     for (int i = 0; i < numSmA; ++i)
     {
@@ -192,8 +192,10 @@ bool checkIsomorphism(vector<int> packA, vector<int> packB, vector<vector<int>> 
         mask[packB[i]] = 2;
     }
 
-    vector<pair<int, int>> degsA(numSmA); //stores degrees of nodes and corresponding node names
-    vector<pair<int, int>> degsB(numSmB);
+    //printVec(mask);
+
+    vector<int> degsA(numSmA);
+    vector<int> degsB(numSmB);
 
     p_queue_pair edgesA;
 
@@ -201,16 +203,16 @@ bool checkIsomorphism(vector<int> packA, vector<int> packB, vector<vector<int>> 
     {
         for (int el : adjList[packA[i]])
         {
+            // cout << packA[i] << " " << el << " "
+            //      << " " << mask[packA[i]] << " " << mask[el] << endl;
             if (mask[el] == mask[packA[i]])
             {
-                degsA[i].first++;
-                degsA[i].second = packA[i];
+                degsA[i]++;
                 edgesA.push((el <= packA[i]) ? make_pair(el, packA[i]) : make_pair(packA[i], el));
             }
         }
     }
 
-    p_queue_pair edgesB;
     for (int i = 0; i < numSmB; ++i)
     {
         for (int el : adjList[packB[i]])
@@ -219,9 +221,7 @@ bool checkIsomorphism(vector<int> packA, vector<int> packB, vector<vector<int>> 
             //      << " " << mask[packA[i]] << " " << mask[el] << endl;
             if (mask[el] == mask[packB[i]])
             {
-                degsB[i].first++;
-                degsB[i].second = packB[i];
-                edgesB.push((el <= packB[i]) ? make_pair(el, packB[i]) : make_pair(packB[i], el));
+                degsB[i]++;
             }
         }
     }
@@ -230,42 +230,46 @@ bool checkIsomorphism(vector<int> packA, vector<int> packB, vector<vector<int>> 
     // printVec(packA);
     // cout << "B: ";
     // printVec(packB);
-    sort(degsA.begin(), degsA.end(), CompareDegrees());
-    sort(degsB.begin(), degsB.end(), CompareDegrees());
-    cout << "A: ";
-    printVecPairs(degsA);
-    cout << "B: ";
-    printVecPairs(degsB);
-    //sort(packB.begin(), packB.end());
+
+    sort(packB.begin(), packB.end());
     //printVec(packB);
     bool nextPerm = true;
-    int n1, n2, vA, vB;
+    int n1, n2;
 
     while (nextPerm)
     {
-        p_queue_pair edgesB_t = edgesB;
-        p_queue_pair edgesB_r;
+        priority_queue<pair<int, int>, vector<pair<int, int>>, CompareNodes> edgesB;
 
         //printVec(packB);
-        while (!edgesB_t.empty())
+        for (int i = 0; i < numSmB; ++i)
         {
+            for (int el : adjList[packB[i]])
+            {
+                // cout << packA[i] << " " << el << " "
+                //      << " " << mask[packA[i]] << " " << mask[el] << endl;
+                if (mask[el] == mask[packB[i]])
+                {
 
-            vA = edgesB_t.top().first;
-            vB = edgesB_t.top().second;
-            edgesB_t.pop();
-
-            n1 = packA[find(packB.begin(), packB.end(), vA) - packB.begin()];
-            n2 = packA[find(packB.begin(), packB.end(), vB) - packB.begin()];
-            edgesB_r.push((n1 <= n2) ? make_pair(n1, n2) : make_pair(n2, n1));
+                    n1 = packA[find(packB.begin(), packB.end(), el) - packB.begin()];
+                    //cout << n1 << "=" << el << " ";
+                    n2 = packA[find(packB.begin(), packB.end(), packB[i]) - packB.begin()];
+                    //cout << n2 << "=" << packB[i] << "\n";
+                    edgesB.push((n1 <= n2) ? make_pair(n1, n2) : make_pair(n2, n1));
+                }
+            }
         }
-
-        if (compareEdges(edgesA, edgesB_r))
+        if (compareEdges(edgesA, edgesB))
             return false;
 
         //return false;
         nextPerm = next_permutation(packB.begin(), packB.end());
     }
 
+    return true;
+}
+
+bool checkIsomorphism(vector<int> packA, vector<int> packB)
+{
     return true;
 }
 
@@ -281,22 +285,25 @@ void getPackPairs(vector<vector<int>> adjList)
             //cout << " >>>>> TRYIN' " << i << "-" << j << endl;
             packA = packBuffer[i];
             packB = packBuffer[j];
-            if (!checkIsomorphism(packA, packB, adjList))
+            if (!checkOverlap(packA, packB, adjList))
             {
-                // cout << "ISO!\n";
-                // cout << "A: ";
-                // printVec(packA);
-                // cout << "B: ";
-                // printVec(packB);
-                if (packA[0] < packB[0])
+                if (checkIsomorphism(packA, packB))
                 {
-                    packA.insert(packA.end(), packB.begin(), packB.end());
-                    packFinal.push(packA);
-                }
-                else
-                {
-                    packB.insert(packB.end(), packA.begin(), packA.end());
-                    packFinal.push(packB);
+                    // cout << "ISO!\n";
+                    // cout << "A: ";
+                    // printVec(packA);
+                    // cout << "B: ";
+                    // printVec(packB);
+                    if (packA[0] < packB[0])
+                    {
+                        packA.insert(packA.end(), packB.begin(), packB.end());
+                        packFinal.push(packA);
+                    }
+                    else
+                    {
+                        packB.insert(packB.end(), packA.begin(), packA.end());
+                        packFinal.push(packB);
+                    }
                 }
             }
         }
@@ -385,16 +392,6 @@ void printVec(vector<int> vec)
         cout << el << ", ";
     }
     cout << ")\n";
-}
-
-void printVecPairs(vector<pair<int, int>> vec)
-{
-    cout << "[ ";
-    for (pair<int, int> el : vec)
-    {
-        cout << "(" << el.first << "," << el.second << "); ";
-    }
-    cout << "]\n";
 }
 
 void printMatrix(vector<int> *matrix, int matRows, int matCols)
