@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 for file in data/*.in; do
     echo "$(date +"%T") ----- ${file} -----"
 
@@ -9,7 +10,7 @@ for file in data/*.in; do
     # Exact time
     # time ./main < ${file} | diff ${f}.out -
 
-    ./smugglers.out < ${file} | diff ${f}.out -
+    ./automaton.out < ${file} | diff ${f}.out -
 
     echo "$(date +"%T") ----- DONE -----";
     echo "";
