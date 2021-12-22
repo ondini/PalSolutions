@@ -8,44 +8,46 @@
 
 using namespace std;
 
-typedef struct
-{
-    long Amin;
-    long Amax;
-    long Cmin;
-    long Cmax;
-    long Mmin;
-    long Mmax;
-    long P;
-} LCGspecs;
-
 void readEdges(vector<map<char, int>> *adjList, int numV, int numA);
 
 void printGraph(vector<map<char, int>> adjList);
+
 void printVec(vector<int> vec);
 void printVec(vector<long> vec);
 void printVecPairs(vector<pair<int, int>> vec);
 void printMatrix(vector<int> *matrix, int matRows, int matCols);
 
 long eratos_sieve(long Pmax, vector<long> *primes);
-vector<long> getLCGs(vector<long> *primes, long start, long MSoFar, long CSoFar, LCGspecs LCG, long Nprimes, long backSize, vector<long> factors);
+void generate_valid_EFGs(vector<long> *primes, int P, long Mmax, long Mmin, long Nprimes);
+vector<int> shit(vector<long> *primes, long start, long MSoFar, long Mmax, long Mmin, long Nprimes, long backSize, vector<long> factors);
 
+long Pa, Ama, Ami, Cma, Cmi;
+vector<long> preview;
+vector<long> preview2;
 int main(int argc, char const *argv[])
 {
     // read metadata - num. of automaton states, Alphabet size, num. final states, number of negative and positive examples and their length
     long Amin, Amax, Cmin, Cmax, Mmin, Mmax, P;
     cin >> Amin >> Amax >> Cmin >> Cmax >> Mmin >> Mmax >> P;
-    LCGspecs LCG = {Amin, Amax, Cmin, Cmax, Mmin, Mmax, P};
+    Pa = P;
+    Ama = Amax;
+    Ami = Amin;
+    Cma = Cmax;
+    Cmi = Cmin;
 
     long factors[] = {2, 6, 30, 210, 2310, 30030, 510510, 9699690}; // 223092870
     long Pmax = Mmax / factors[P - 2];                              // max reasonable value of prime factor of Mmax
 
-    vector<long> primes(1.25506 * Pmax / log10(Pmax) + 1); // num of primes smaller than Pmax is upperbounded by this relation
+    cout << "Pmax " << Pmax << endl;
+    vector<long> primes(1.25506 * Pmax / log(Pmax) + 1); // num of primes smaller than Pmax is upperbounded by this relation
     long Nprimes = eratos_sieve(Pmax, &primes);
     primes.resize(Nprimes);
+    cout << Nprimes << endl;
+    printVec(primes);
 
     vector<long> factorsM(P); // varible for storing prime factors of M
-    vector<long> ret = getLCGs(&primes, 0, 1, 0, LCG, Nprimes, P - 1, factorsM);
+    vector<int> ret = shit(&primes, 0, 1, Mmax, Mmin, Nprimes, P - 1, factorsM);
+    printf("Final shit: %d, %d\n", ret[0], ret[1]);
     cout << ret[1] << endl;
     return 0;
 }
@@ -75,6 +77,33 @@ long eratos_sieve(long Pmax, vector<long> *primes)
     return prime_i;
 }
 
+long getC(vector<long> factors, long Cmin, long Cmax)
+{ //a dumb function for getting C factors
+    bool c = true;
+    long count = 0;
+    for (long C = Cmin; C <= Cmax; C++)
+    {
+        c = true;
+        for (long i = 0; i < (long)factors.size(); i++)
+        {
+            //printf("     C== C:%d, factor: %d, C//f = %d\n", C, factors[i], C % factors[i]);
+            if (C % factors[i] == 0)
+            {
+                //cout << "            konec\n";
+                c = false;
+                break;
+            }
+        }
+        if (c)
+        {
+            //cout << "            +1\n";
+            count += 1;
+        }
+    }
+    //cout << "   count" << count << endl;
+    return count;
+}
+
 void kSubset(vector<long> set, int iEnd, vector<long> result, int remainingDepth, vector<vector<long>> *subsetBuffer)
 {
     //function generating all k-subsets of given set
@@ -94,84 +123,98 @@ void kSubset(vector<long> set, int iEnd, vector<long> result, int remainingDepth
     }
 }
 
-long getC(vector<long> factors, long newM, LCGspecs LCG, int numFacs, long sign)
+long getC2(vector<long> factors, long Cmin, long Cmax, int numFacs, int sign)
 {
 
     vector<vector<long>> subsetBuffer;
     vector<long> result(numFacs, 0);
     kSubset(factors, (int)factors.size() - 1, result, numFacs - 1, &subsetBuffer);
+    printf("Geting C, susBufSize%d\n", (int)subsetBuffer.size());
     long numC = 0;
+    long res;
     for (int i = 0; i < (int)subsetBuffer.size(); ++i)
     {
-        //printVec(subsetBuffer[i]);
-        long factor = newM;
+        long factor = 1;
+        printVec(subsetBuffer[i]);
         for (int j = 0; j < (int)subsetBuffer[i].size(); j++)
         {
             factor *= subsetBuffer[i][j];
         }
-        numC += sign * (floor((LCG.Cmax) / (double)factor) - ceil((LCG.Cmin) / (double)factor) + 1);
+        res = sign * (floor((Cmax) / (double)factor) - ceil((Cmin) / (double)factor) + 1);
+        numC += res;
+        printf("Factor: %ld, res: %ld, %lf, %lf, numC: %ld \n", factor, res, floor((Cmax) / (double)factor), ceil((Cmin) / (double)factor), numC);
+
+        preview.push_back(sign * factor);
+        preview2.push_back(res);
     }
     if (numFacs < (int)factors.size())
-        numC += getC(factors, newM, LCG, numFacs + 1, sign * -1);
+        numC += getC2(factors, Cmin, Cmax, numFacs + 1, sign * -1);
 
+    printf("returning K %ld\n", numC);
     return numC;
 }
 
-vector<long> getLCGs(vector<long> *primes, long start, long MSoFar, long CSoFar, LCGspecs LCG, long Nprimes, long backSize, vector<long> factors)
+vector<int> shit(vector<long> *primes, long start, long MSoFar, long Mmax, long Mmin, long Nprimes, long backSize, vector<long> factors)
 {
-    //printf("M== D: %ld, MSoFar: %ld, start:%ld \n", LCG.P - backSize, MSoFar, start);
+    printf("M== D: %ld, MSoFar: %ld, start:%ld \n", Pa - backSize, MSoFar, start);
     long LCGCount = 0; // num of valid LCGs in this loop
     long i = start;
-    vector<long> ret(2);
-    long prime, newM, numA, numC;
-    long CUpdate;
+    vector<int> temp(2);
+    long prime, newM, numA, numC, numC2;
     for (; i < Nprimes - backSize; ++i) // iterator in the range of primes
     {
-        //printf("M== d:%ld, i:%ld, p_i: %ld\n", LCG.P - backSize, i, primes->at(i));
+        for (int j = 0; j < Pa - backSize; j++)
+        {
+            cout << " ";
+        }
+
+        printf("M== d:%ld, i:%ld, p_i: %ld", Pa - backSize, i, primes->at(i));
         prime = primes->at(i);
         newM = MSoFar * prime;
         if (backSize == 0)
-        {                        //last factor of the P factors
-            if (newM > LCG.Mmax) // over the max bound
+        {
+            if (newM > Mmax)
+            { // over the max bound
+                cout << endl;
                 break;
-
-            else if (newM >= LCG.Mmin)
+            }
+            else if (newM > Mmin)
             { // bootm bound is ok
-                numC = 0;
-                // get num of As
-                numA = floor((LCG.Amax - 1) / (double)newM) - ceil((LCG.Amin - 1) / (double)newM) + 1;
-                // get num of Cs
-                factors[LCG.P - backSize - 1] = prime;
-                if (numA > 0)
+                numA = floor((Ama - 1) / (double)newM) - ceil((Ami - 1) / (double)newM) + 1;
+                cout << " -> " << newM << " :A: " << numA;
+                factors[Pa - backSize - 1] = prime;
+                if (numA)
                 {
-                    vector<long> subsetFactors(factors.begin(), factors.begin() + LCG.P - backSize - 1);
-                    CUpdate = getC(subsetFactors, prime, LCG, 1, -1) + (floor((LCG.Cmax) / (double)prime) - ceil((LCG.Cmin) / (double)prime) + 1);
-                    numC = LCG.Cmax - LCG.Cmin - (CSoFar + CUpdate) + 1;
+                    printVec(factors);
+                    numC2 = 0;
+                    numC2 = Cma - Cmi - getC2(factors, Cmi, Cma, 1, 1) + 1;
+                    printVec(preview);
+                    printVec(preview2);
+                    numC = getC(factors, Cmi, Cma);
+                    printf("Got C2 %ld, %ld!\n", numC, numC2);
                 }
-
+                cout << endl;
                 LCGCount += numA * numC;
             }
+            cout << endl;
         }
         else
-        {                                  // not last factor, move deeper
-            if (MSoFar * prime > LCG.Mmax) // over the max bound
-                break;
-            factors[LCG.P - backSize - 1] = prime;
-            vector<long> subsetFactors(factors.begin(), factors.begin() + LCG.P - backSize - 1);
-            CUpdate = getC(subsetFactors, prime, LCG, 1, -1) + (floor((LCG.Cmax) / (double)prime) - ceil((LCG.Cmin) / (double)prime) + 1);
-            ret = getLCGs(primes, i + 1, MSoFar * prime, CSoFar + CUpdate, LCG, Nprimes, backSize - 1, factors);
-            LCGCount += ret[1];
-            if (ret[0] == -1) //there were no iterations, boud was initially exceeded
+        {
+            cout << endl;
+            factors[Pa - backSize - 1] = prime;
+            temp = shit(primes, i + 1, MSoFar * prime, Mmax, Mmin, Nprimes, backSize - 1, factors);
+            LCGCount += temp[1];
+            if (temp[0] == -1)
                 break;
         }
     }
 
     // return vals
-    ret[0] = 1;
-    if (i == start) //there were no iterations, boud was initially exceeded
-        ret[0] = -1;
-    ret[1] = LCGCount;
-    return ret;
+    temp[0] = 1;
+    if (i == start)
+        temp[0] = -1;
+    temp[1] = LCGCount;
+    return temp;
 }
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<, PRINT FUNCTIONS ,>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
